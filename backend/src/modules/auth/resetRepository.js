@@ -65,9 +65,68 @@ async function updateUserPassword(userId, newPassword) {
   // Revoke all Redis-cached active tokens to prevent session hijacking
   await revokeAllUserTokensRedis(userId);
 }
+async function resetPasswordAtomic(rawToken, newPassword) {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const hash = crypto
+      .createHash('sha256')
+      .update(rawToken)
+      .digest('hex');
+
+    // Verify token and mark it used atomically
+    const res = await client.query(
+      `UPDATE password_reset_tokens
+       SET used = TRUE
+       WHERE token_hash = $1
+         AND used = FALSE
+         AND expires_at > NOW()
+       RETURNING user_id`,
+      [hash]
+    );
+
+    if (res.rows.length === 0) {
+      throw new Error('Invalid or expired reset token');
+    }
+
+    const userId = res.rows[0].user_id;
+
+    const passwordHash = await argon2.hash(newPassword);
+
+    await client.query(
+      `UPDATE users
+       SET password_hash = $1,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [passwordHash, userId]
+    );
+
+    await client.query(
+      `UPDATE refresh_tokens
+       SET revoked = TRUE
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    await client.query('COMMIT');
+
+    // Redis cleanup after successful commit
+    await revokeAllUserTokensRedis(userId);
+
+    return userId;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 module.exports = {
   createResetToken,
   verifyResetToken,
   markTokenUsed,
   updateUserPassword,
+  resetPasswordAtomic,
 };
