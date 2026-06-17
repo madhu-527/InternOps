@@ -23,10 +23,7 @@ async function forgotPassword(email, requestInfo) {
 }
 
 async function resetPassword(token, newPassword, requestInfo) {
-  const userId = await repo.resetPasswordAtomic(
-    token,
-    newPassword
-  );
+  const userId = await repo.resetPasswordAtomic(token, newPassword);
 
   await createAuditLog({
     userId,

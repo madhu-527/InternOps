@@ -71,10 +71,7 @@ async function resetPasswordAtomic(rawToken, newPassword) {
   try {
     await client.query('BEGIN');
 
-    const hash = crypto
-      .createHash('sha256')
-      .update(rawToken)
-      .digest('hex');
+    const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
 
     // Verify token and mark it used atomically
     const res = await client.query(
