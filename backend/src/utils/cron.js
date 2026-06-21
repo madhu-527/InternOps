@@ -26,28 +26,28 @@ function setupCronJobs() {
         "SELECT id, image_path FROM proof_submissions WHERE status='VERIFIED' AND verified_at < $1 AND image_path IS NOT NULL",
         [cutoff]
       );
-const deletionResults = await Promise.allSettled(
-  rows.map(async (row) => {
-    const fp = path.join(__dirname, '..', '..', row.image_path);
+      const deletionResults = await Promise.allSettled(
+        rows.map(async (row) => {
+          const fp = path.join(__dirname, '..', '..', row.image_path);
 
-    try {
-      await fs.promises.unlink(fp);
-      return 1;
-    } catch (err) {
-      if (err.code !== 'ENOENT') {
-        throw err;
-      }
-      return 0;
-    }
-  })
-);
+          try {
+            await fs.promises.unlink(fp);
+            return 1;
+          } catch (err) {
+            if (err.code !== 'ENOENT') {
+              throw err;
+            }
+            return 0;
+          }
+        })
+      );
 
-const filesDeleted = deletionResults.reduce((count, result) => {
-  if (result.status === 'fulfilled') {
-    return count + result.value;
-  }
-  return count;
-}, 0);
+      const filesDeleted = deletionResults.reduce((count, result) => {
+        if (result.status === 'fulfilled') {
+          return count + result.value;
+        }
+        return count;
+      }, 0);
 
       // Update database records
       await pool.query(
