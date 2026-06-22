@@ -16,13 +16,7 @@ const { sendVerificationEmail } = require('./verificationService');
 
 async function register(data, creator) {
   if (data.managerId) {
-    const pool = require('../../config/db');
-    const {
-      rows: [manager],
-    } = await pool.query(
-      'SELECT id, role FROM users WHERE id = $1 AND deleted_at IS NULL',
-      [data.managerId]
-    );
+    const manager = await repo.findByIdRaw(data.managerId);
     if (!manager) throw new Error('Manager not found');
     if (!isValidStep(manager.role, data.role)) {
       throw new Error(
@@ -91,9 +85,11 @@ async function refreshTokens(token, ip) {
   }
 
   const hash = hashToken(token);
-  const isValid = await repo.validateRefreshToken(hash);
 
-  if (!isValid) {
+  // Atomic claim — if two concurrent requests race, only one gets a userId back.
+  // The second gets null and is rejected immediately, eliminating the TOCTOU window.
+  const claimedUserId = await repo.claimRefreshToken(hash);
+  if (!claimedUserId) {
     throw new UnauthorizedError('Token revoked/expired');
   }
 
@@ -108,7 +104,6 @@ async function refreshTokens(token, ip) {
   const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   await repo.storeRefreshTokenRedis(user.id, hashToken(newRefresh), newExpiry);
-  await repo.revokeRefreshTokenRedis(hash);
 
   return {
     accessToken: newAccess,

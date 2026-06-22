@@ -1,4 +1,4 @@
-﻿const { notifyUser } = require('../../websocket');
+const { notifyUser } = require('../../websocket');
 ('use strict');
 const auth = require('../../middleware/auth');
 const rbac = require('../../middleware/rbac');
@@ -27,6 +27,10 @@ module.exports = async function ratingsRoutes(fastify) {
           remarks: z.string().max(2000).optional(),
         })
         .parse(req.body);
+
+      if (req.user.id === rated_user_id) {
+        return reply.status(400).send({ error: 'You cannot rate yourself' });
+      }
 
       // Must be in the rater's downward hierarchy (admin can rate anyone).
       if (req.user.role !== 'ADMIN') {

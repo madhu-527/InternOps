@@ -36,40 +36,37 @@ const ROLE_LABEL = {
 };
 
 const nav = [
-  { path: '/', label: 'Dashboard', icon: '🏠' },
-  { path: '/team', label: 'My Team', icon: '👥', managerOnly: true },
-  { path: '/attendance', label: 'Attendance', icon: '📅' },
-  { path: '/ratings', label: 'Ratings', icon: '⭐' },
-  { path: '/tasks', label: 'Tasks', icon: '🎯' },
-  { path: '/meetings', label: 'Meetings', icon: '📹' },
-  { path: '/notifications', label: 'Notifications', icon: '🔔' },
-  { path: '/profile', label: 'Profile', icon: '👤' },
-  { path: '/sessions', label: 'Sessions', icon: '🔐' },
+  { path: '/', label: 'Dashboard' },
+  { path: '/team', label: 'My Team', managerOnly: true },
+  { path: '/attendance', label: 'Attendance' },
+  { path: '/ratings', label: 'Ratings' },
+  { path: '/tasks', label: 'Tasks' },
+  { path: '/meetings', label: 'Meetings' },
+  { path: '/notifications', label: 'Notifications' },
+  { path: '/profile', label: 'Profile' },
+  { path: '/sessions', label: 'Sessions' },
   {
     path: '/reports',
     label: 'Reports',
-    icon: '📈',
     roles: ['ADMIN', 'SENIOR_TL'],
   },
   {
     path: '/analytics',
     label: 'Analytics',
-    icon: '📊',
     roles: ['ADMIN', 'SENIOR_TL'],
   },
   {
     path: '/exports',
     label: 'Exports',
-    icon: '⬇️',
     roles: ['ADMIN', 'SENIOR_TL'],
   },
 ];
 
 const adminNav = [
-  { path: '/admin', label: 'Admin Panel', icon: '🛡️' },
-  { path: '/departments', label: 'Departments', icon: '🏢' },
-  { path: '/audit', label: 'Audit Log', icon: '🧾' },
-  { path: '/assistant', label: 'AI Assistant', icon: '🤖' },
+  { path: '/admin', label: 'Admin Panel' },
+  { path: '/departments', label: 'Departments' },
+  { path: '/audit', label: 'Audit Log' },
+  { path: '/assistant', label: 'AI Assistant' },
 ];
 
 function initials(u) {
@@ -124,7 +121,6 @@ export default function Dashboard() {
   const allItems = [...visibleNav, ...(isAdmin ? adminNav : [])];
   const current = allItems.find((n) => n.path === loc.pathname) || {
     label: 'Dashboard',
-    icon: '🏠',
   };
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -142,7 +138,6 @@ export default function Dashboard() {
           ${collapsed ? 'justify-center px-0 py-3' : 'px-3 py-2.5'}
           ${active ? 'bg-white text-indigo-700 shadow-lg shadow-indigo-900/20' : 'text-indigo-100 hover:bg-white/10 hover:translate-x-1'}`}
       >
-        <span className="text-lg">{n.icon}</span>
         {!collapsed && <span className="whitespace-nowrap">{n.label}</span>}
         {!collapsed && active && (
           <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />
@@ -239,7 +234,6 @@ export default function Dashboard() {
             >
               {collapsed ? '»' : '«'}
             </button>
-            <span className="text-xl">{current.icon}</span>
             <h1 className="text-lg font-bold text-gray-800">{current.label}</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -272,15 +266,12 @@ export default function Dashboard() {
         </header>
 
         {/* Content */}
-        <main
-          key={loc.pathname}
-          className="flex-1 overflow-auto animate-fade-in-up"
-        >
+        <main className="flex-1 overflow-auto">
           <Routes>
             <Route
               index
               element={
-                <div className="p-6">
+                <div className="p-6 animate-fade-in-up">
                   <Home />
                 </div>
               }

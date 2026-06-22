@@ -1,26 +1,42 @@
 const pool = require('../../config/db');
 const argon2 = require('argon2');
 
-async function createUser({
-  email,
-  password,
-  role,
-  managerId,
-  departmentId,
-  fullName,
-}) {
-  const hash = await argon2.hash(password);
+async function findByIdRaw(id) {
+  const res = await pool.query(
+    'SELECT id, role FROM users WHERE id = $1 AND deleted_at IS NULL',
+    [id]
+  );
+  return res.rows[0] || null;
+}
+
+async function listUsersByRole(role) {
+  return pool.query(
+    'SELECT id,email,role,full_name,suspended FROM users WHERE deleted_at IS NULL AND role=$1',
+    [role]
+  );
+}
+
+async function createUser(data) {
+  const passwordHash = await argon2.hash(data.password);
   const res = await pool.query(
     `INSERT INTO users (email, password_hash, role, manager_id, department_id, full_name)
-     VALUES ($1,$2,$3,$4,$5,$6) RETURNING id,email,role,manager_id,department_id,full_name,suspended,created_at`,
-    [email, hash, role, managerId, departmentId, fullName]
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, email, role, full_name, manager_id, department_id, created_at`,
+    [
+      data.email.trim().toLowerCase(),
+      passwordHash,
+      data.role,
+      data.managerId || null,
+      data.departmentId || null,
+      data.fullName || null,
+    ]
   );
   return res.rows[0];
 }
 
 async function findByEmail(email) {
   const res = await pool.query(
-    'SELECT * FROM users WHERE email=$1 AND deleted_at IS NULL',
+    'SELECT * FROM users WHERE LOWER(email)=LOWER($1) AND deleted_at IS NULL',
     [email]
   );
   return res.rows[0] || null;
@@ -114,8 +130,10 @@ async function storeRefreshTokenRedis(userId, tokenHash, expiresAt) {
       { EX: ttl }
     );
     await redis.sAdd(`user_tokens:${userId}`, tokenHash);
-    return;
   }
+  // ALWAYS persist to the primary database so a Redis flush / restart
+  // doesn't wipe every active session. Redis is a cache, not the source
+  // of truth (#392).
   await storeRefreshToken(userId, tokenHash, expiresAt);
 }
 
@@ -155,6 +173,43 @@ async function validateRefreshToken(tokenHash) {
   return rows.length > 0;
 }
 
+// Atomically claim a refresh token — returns userId string if claimed, null if
+// already used/revoked (race condition or replay attack).
+async function claimRefreshToken(tokenHash) {
+  const redis = await getRedisClient();
+  if (redis) {
+    // Lua script: GET then DEL only if key still exists — atomic, no TOCTOU.
+    const lua = `
+      local val = redis.call('GET', KEYS[1])
+      if val then
+        redis.call('DEL', KEYS[1])
+        return val
+      end
+      return false
+    `;
+    const raw = await redis.eval(lua, {
+      keys: [`refresh_token:${tokenHash}`],
+      arguments: [],
+    });
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw).userId;
+    } catch {
+      return raw; // legacy plain-string fallback
+    }
+  }
+  // Postgres fallback: atomic UPDATE — only one concurrent request can flip
+  // revoked=FALSE → TRUE; the second gets 0 rows back.
+  const { rows } = await pool.query(
+    `UPDATE refresh_tokens
+     SET revoked = TRUE
+     WHERE token_hash = $1 AND revoked = FALSE AND expires_at > NOW()
+     RETURNING user_id`,
+    [tokenHash]
+  );
+  return rows[0]?.user_id ?? null;
+}
+
 async function revokeRefreshTokenRedis(tokenHash) {
   const redis = await getRedisClient();
   if (redis) {
@@ -189,6 +244,8 @@ module.exports = {
   createUser,
   findByEmail,
   findById,
+  findByIdRaw,
+  listUsersByRole,
   verifyPassword,
   storeRefreshToken,
   revokeRefreshToken,
@@ -200,4 +257,5 @@ module.exports = {
   revokeAllUserTokensRedis,
   getRefreshTokenRedis,
   validateRefreshToken,
+  claimRefreshToken,
 };

@@ -10,8 +10,20 @@ const COOLDOWN_MS = Number(
 );
 const CACHE_TTL_MS = Number(process.env.AI_CACHE_TTL_MS || 5 * 60 * 1000);
 
+const MAX_AI_RESPONSE_BYTES = Number(
+  process.env.AI_MAX_RESPONSE_BYTES || 5 * 1024 * 1024
+);
+
+class ResponseSizeLimitError extends Error {
+  constructor(message = 'AI provider response exceeded size cap') {
+    super(message);
+    this.name = 'ResponseSizeLimitError';
+    this.statusCode = 413;
+  }
+}
+
 function isPlaceholder(value) {
-  return !value || value.startsWith('your-');
+  return !value || String(value).startsWith('your-');
 }
 
 function getProviderOrder() {
@@ -103,6 +115,62 @@ async function fetchWithTimeout(url, options = {}) {
   }
 }
 
+async function readResponseTextWithLimit(response) {
+  const contentLength = response.headers.get('content-length');
+
+  if (contentLength) {
+    const parsedLength = Number(contentLength);
+
+    if (Number.isFinite(parsedLength) && parsedLength > MAX_AI_RESPONSE_BYTES) {
+      throw new ResponseSizeLimitError(
+        `AI provider response Content-Length exceeds ${MAX_AI_RESPONSE_BYTES} bytes`
+      );
+    }
+  }
+
+  if (!response.body || typeof response.body.getReader !== 'function') {
+    throw new Error('Streaming response body is not supported');
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let received = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      received += value.byteLength;
+
+      if (received > MAX_AI_RESPONSE_BYTES) {
+        await reader.cancel();
+
+        throw new ResponseSizeLimitError(
+          `AI provider response exceeded ${MAX_AI_RESPONSE_BYTES} bytes`
+        );
+      }
+
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function parseJsonResponseWithLimit(response, providerName) {
+  const text = await readResponseTextWithLimit(response);
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`${providerName} returned invalid JSON`);
+  }
+}
+
 function buildPrompt(messages = []) {
   return messages
     .map((m) => `${m.role || 'user'}: ${m.content || ''}`)
@@ -133,7 +201,7 @@ async function callOpenAICompatible({
     throw new Error(`${name} failed with status ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = await parseJsonResponseWithLimit(response, name);
   const text = data.choices?.[0]?.message?.content;
 
   if (!text) {
@@ -182,7 +250,9 @@ async function callGemini(messages) {
     }:generateContent?key=${config.ai.geminiKey}`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         contents: [
           {
@@ -198,7 +268,7 @@ async function callGemini(messages) {
     throw new Error(`gemini failed with status ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = await parseJsonResponseWithLimit(response, 'gemini');
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!text) {
@@ -221,7 +291,9 @@ async function callHuggingFace(messages) {
         Authorization: `Bearer ${config.ai.huggingfaceToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ inputs: prompt }),
+      body: JSON.stringify({
+        inputs: prompt,
+      }),
     }
   );
 
@@ -229,7 +301,8 @@ async function callHuggingFace(messages) {
     throw new Error(`huggingface failed with status ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = await parseJsonResponseWithLimit(response, 'huggingface');
+
   const text =
     data?.[0]?.generated_text ||
     data?.generated_text ||
@@ -281,22 +354,30 @@ async function generateAIResponse({ messages }) {
 
   for (const providerName of order) {
     const provider = providerRegistry[providerName];
+
     if (!provider) continue;
 
     const key = provider.key();
 
     if (isPlaceholder(key)) {
-      errors.push({ provider: providerName, reason: 'missing_api_key' });
+      errors.push({
+        provider: providerName,
+        reason: 'missing_api_key',
+      });
       continue;
     }
 
     if (!isProviderOpen(providerName)) {
-      errors.push({ provider: providerName, reason: 'circuit_open' });
+      errors.push({
+        provider: providerName,
+        reason: 'circuit_open',
+      });
       continue;
     }
 
     try {
       const content = await provider.call(messages);
+
       recordSuccess(providerName);
 
       const result = {
@@ -306,11 +387,21 @@ async function generateAIResponse({ messages }) {
       };
 
       setCachedResponse(payload, result);
+
       return result;
     } catch (error) {
+      if (error instanceof ResponseSizeLimitError || error.statusCode === 413) {
+        throw error;
+      }
+
       recordFailure(providerName, error);
+
       console.warn(`[AI] Provider failed: ${providerName}`, error.message);
-      errors.push({ provider: providerName, reason: error.message });
+
+      errors.push({
+        provider: providerName,
+        reason: error.message,
+      });
     }
   }
 
@@ -320,7 +411,9 @@ async function generateAIResponse({ messages }) {
 }
 
 function getProviderHealth() {
-  return getProviderOrder().map((name) => {
+  const order = getProviderOrder();
+
+  return order.map((name) => {
     const provider = providerRegistry[name];
     const state = failureState.get(name);
 
@@ -339,4 +432,5 @@ function getProviderHealth() {
 module.exports = {
   generateAIResponse,
   getProviderHealth,
+  ResponseSizeLimitError,
 };

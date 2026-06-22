@@ -1,15 +1,14 @@
 const auth = require('../../middleware/auth');
 const rbac = require('../../middleware/rbac');
 const ownership = require('../../middleware/ownership');
+const requireFreshRole = require('../../middleware/requireFreshRole');
 const repo = require('./repository');
 const { createAuditLog, extractRequestInfo } = require('../../utils/audit');
-const { checkHierarchyAccess } = require('../../utils/hierarchy');
+const { checkHierarchyAccess, ROLE_RANK } = require('../../utils/hierarchy');
 const { z } = require('zod');
 
 // Roles that manage a team (Interns have no reports).
 const MANAGER_ROLES = ['ADMIN', 'SENIOR_TL', 'TL', 'CAPTAIN'];
-// Hierarchy levels — a manager may add any member ranked below themselves.
-const ROLE_RANK = { ADMIN: 4, SENIOR_TL: 3, TL: 2, CAPTAIN: 1, INTERN: 0 };
 // Roles a manager can assign (ADMIN is never assignable through team mgmt).
 const ASSIGNABLE_ROLES = ['SENIOR_TL', 'TL', 'CAPTAIN', 'INTERN'];
 
@@ -188,7 +187,14 @@ async function routes(fastify) {
   // Suspend / activate a member (within hierarchy).
   fastify.patch(
     '/members/:id/status',
-    { preHandler: [auth, rbac(...MANAGER_ROLES), ownership('id')] },
+    {
+      preHandler: [
+        auth,
+        requireFreshRole,
+        rbac(...MANAGER_ROLES),
+        ownership('id'),
+      ],
+    },
     async (req, reply) => {
       const { suspended } = z
         .object({ suspended: z.boolean() })
@@ -209,7 +215,14 @@ async function routes(fastify) {
   // Promote / demote a member's role (within hierarchy).
   fastify.patch(
     '/members/:id/role',
-    { preHandler: [auth, rbac(...MANAGER_ROLES), ownership('id')] },
+    {
+      preHandler: [
+        auth,
+        requireFreshRole,
+        rbac(...MANAGER_ROLES),
+        ownership('id'),
+      ],
+    },
     async (req, reply) => {
       const { role } = z
         .object({ role: z.enum(ASSIGNABLE_ROLES) })
