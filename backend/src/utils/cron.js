@@ -77,10 +77,7 @@ function setupCronJobs() {
 
                 const relative = path.relative(uploadsRoot, filePath);
 
-                if (
-                  relative.startsWith('..') ||
-                  path.isAbsolute(relative)
-                ) {
+                if (relative.startsWith('..') || path.isAbsolute(relative)) {
                   console.error(
                     `Invalid path for record ${row.id}: ${row.image_path}`
                   );
