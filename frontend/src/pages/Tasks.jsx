@@ -40,6 +40,9 @@ export default function Tasks() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
+  const [didComment, setDidComment] = useState(false);
+  const [didRepost, setDidRepost] = useState(false);
+  const [didShare, setDidShare] = useState(false);
   const canCreateTask = ['ADMIN', 'SENIOR_TL'].includes(user?.role);
   const canVerify = ['ADMIN', 'CAPTAIN', 'TL', 'SENIOR_TL'].includes(
     user?.role
@@ -57,19 +60,42 @@ export default function Tasks() {
   });
 
   const submitMutation = useMutation({
-    mutationFn: ({ taskId, file }) => {
-      const form = new FormData();
-      form.append('task_id', taskId);
-      form.append('image', file);
-      return api.post('/proofs/submit', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-    },
-    onSuccess: () => {
-      refetchProofs();
-      queryClient.invalidateQueries({ queryKey: ['proofs'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    },
+    mutationFn: ({
+  taskId,
+  file,
+  didComment,
+  didRepost,
+  didShare,
+}) => {
+  const form = new FormData();
+
+  form.append('task_id', taskId);
+  form.append('image', file);
+
+  form.append('didComment', didComment);
+  form.append('didRepost', didRepost);
+  form.append('didShare', didShare);
+
+  return api.post('/proofs/submit', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+},
+onSuccess: () => {
+
+  setDidComment(false);
+  setDidRepost(false);
+  setDidShare(false);
+
+  refetchProofs();
+
+  queryClient.invalidateQueries({
+    queryKey: ['proofs'],
+  });
+
+  queryClient.invalidateQueries({
+    queryKey: ['tasks'],
+  });
+},
   });
   const verifyMutation = useMutation({
     mutationFn: (proofId) => api.patch(`/proofs/${proofId}/verify`),
@@ -77,22 +103,33 @@ export default function Tasks() {
   });
 
   const handleUpload = (e, taskId) => {
-    const file = e.target.files[0];
+  const file = e.target.files[0];
 
-    if (!file) return;
+  if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert('Only image files are allowed.');
-      return;
-    }
+  if (!didComment && !didRepost && !didShare) {
+    alert('Please select at least one engagement action.');
+    return;
+  }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be under 5MB.');
-      return;
-    }
+  if (!file.type.startsWith('image/')) {
+    alert('Only image files are allowed.');
+    return;
+  }
 
-    submitMutation.mutate({ taskId, file });
-  };
+  if (file.size > 5 * 1024 * 1024) {
+    alert('File size must be under 5MB.');
+    return;
+  }
+
+  submitMutation.mutate({
+    taskId,
+    file,
+    didComment,
+    didRepost,
+    didShare,
+  });
+};
 
   const overdue = (d) => new Date(d) < new Date();
 
@@ -211,17 +248,54 @@ export default function Tasks() {
                     {selectedTask === t.id ? 'Hide proofs' : 'View proofs'}
                   </Btn>
                 )}
-                {user?.role === 'INTERN' && (
-                  <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-green-600 text-white cursor-pointer hover:shadow-lg transition">
-                    <Upload className="w-4 h-4" /> Submit Proof
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleUpload(e, t.id)}
-                      className="hidden"
-                    />
-                  </label>
-                )}
+{user?.role === 'INTERN' && (
+  <div className="space-y-3">
+
+    <div className="flex gap-4 text-sm">
+
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={didComment}
+          onChange={(e) => setDidComment(e.target.checked)}
+        />
+        Comment
+      </label>
+
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={didRepost}
+          onChange={(e) => setDidRepost(e.target.checked)}
+        />
+        Repost
+      </label>
+
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={didShare}
+          onChange={(e) => setDidShare(e.target.checked)}
+        />
+        Share
+      </label>
+
+    </div>
+
+    <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-green-600 text-white cursor-pointer hover:shadow-lg transition">
+      <Upload className="w-4 h-4" />
+      Submit Proof
+
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => handleUpload(e, t.id)}
+        className="hidden"
+      />
+    </label>
+
+  </div>
+)}
               </div>
 
               {selectedTask === t.id && (
@@ -265,6 +339,21 @@ export default function Tasks() {
                           >
                             {p.status}
                           </Badge>
+                          <div className="flex gap-1 mt-1 flex-wrap">
+
+  {p.did_comment && (
+    <Badge color="blue">Comment</Badge>
+  )}
+
+  {p.did_repost && (
+    <Badge color="purple">Repost</Badge>
+  )}
+
+  {p.did_share && (
+    <Badge color="green">Share</Badge>
+  )}
+
+</div>
                           <p className="text-gray-400 mt-1 truncate">
                             Intern:{' '}
                             {p.intern_name ||

@@ -62,11 +62,31 @@ async function getTasks(filters, userId, userRole) {
   `;
   return (await pool.query(q, params)).rows;
 }
-async function submitProof(taskId, internId, imagePath) {
+async function submitProof(taskId, internId, imagePath, actions) {
+  const { didComment, didRepost, didShare } = actions;
+
   const res = await pool.query(
-    'INSERT INTO proof_submissions (task_id, intern_id, image_path) VALUES ($1,$2,$3) RETURNING *',
-    [taskId, internId, imagePath]
+    `INSERT INTO proof_submissions
+      (
+        task_id,
+        intern_id,
+        image_path,
+        did_comment,
+        did_repost,
+        did_share
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+    [
+      taskId,
+      internId,
+      imagePath,
+      didComment,
+      didRepost,
+      didShare,
+    ]
   );
+
   return res.rows[0];
 }
 async function verifyProof(proofId, verifierId, verifierRole) {
