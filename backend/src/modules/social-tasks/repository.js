@@ -77,14 +77,7 @@ async function submitProof(taskId, internId, imagePath, actions) {
       )
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
-    [
-      taskId,
-      internId,
-      imagePath,
-      didComment,
-      didRepost,
-      didShare,
-    ]
+    [taskId, internId, imagePath, didComment, didRepost, didShare]
   );
 
   return res.rows[0];

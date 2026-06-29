@@ -40,13 +40,13 @@ async function routes(fastify) {
       const task_id = data.fields?.task_id?.value;
       const didComment = data.fields?.didComment?.value === 'true';
       const didRepost = data.fields?.didRepost?.value === 'true';
-       const didShare = data.fields?.didShare?.value === 'true';
+      const didShare = data.fields?.didShare?.value === 'true';
 
-       if (!didComment && !didRepost && !didShare) {
-  return reply.status(400).send({
-    error: 'At least one engagement action must be selected.',
-  });
-}
+      if (!didComment && !didRepost && !didShare) {
+        return reply.status(400).send({
+          error: 'At least one engagement action must be selected.',
+        });
+      }
 
       if (!task_id)
         return reply.status(400).send({ error: 'task_id required' });
@@ -103,16 +103,11 @@ async function routes(fastify) {
       await pipeline(data.file, writeStream);
 
       const dbSavedPath = ['uploads', filename].join('/');
-      const proof = await repo.submitProof(
-  task_id,
-  req.user.id,
-  dbSavedPath,
-  {
-    didComment,
-    didRepost,
-    didShare,
-  }
-);
+      const proof = await repo.submitProof(task_id, req.user.id, dbSavedPath, {
+        didComment,
+        didRepost,
+        didShare,
+      });
       req.auditOnResponse = {
         userId: req.user.id,
         action: 'PROOF_SUBMITTED',
