@@ -387,6 +387,7 @@ export default function Tasks() {
                       ))
                     )}
                   </div>
+<<<<<<< HEAD
                 )}
                 {user?.role === 'INTERN' && (
                   <div className="space-y-3">
@@ -434,6 +435,70 @@ export default function Tasks() {
               </div>
 
               {selectedTask === t.id && (
+=======
+                </div>
+              </div>
+
+            <div className="flex items-center gap-2 mt-4">
+  {canVerify && (
+    <Btn
+      variant="outline"
+      onClick={() =>
+        setSelectedTask(selectedTask === t.id ? null : t.id)
+      }
+    >
+      {selectedTask === t.id ? 'Hide proofs' : 'View proofs'}
+    </Btn>
+  )}
+
+  {user?.role === 'INTERN' && (
+    <div className="space-y-3">
+      <div className="flex gap-4 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={didComment}
+            onChange={(e) => setDidComment(e.target.checked)}
+          />
+          Comment
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={didRepost}
+            onChange={(e) => setDidRepost(e.target.checked)}
+          />
+          Repost
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={didShare}
+            onChange={(e) => setDidShare(e.target.checked)}
+          />
+          Share
+        </label>
+      </div>
+
+      <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-green-600 text-white cursor-pointer hover:shadow-lg transition">
+        <Upload className="w-4 h-4" />
+        Submit Proof
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => handleUpload(e, t.id)}
+          className="hidden"
+        />
+      </label>
+    </div>
+  )}
+</div>
+
+{selectedTask === t.id && (
+>>>>>>> ceda5c1 (fix: resolve Tasks.jsx JSX build error)
                 <div className="mt-4 border-t pt-4 space-y-2 animate-fade-in">
                   <h4 className="text-sm font-semibold text-gray-700">
                     Proof submissions
