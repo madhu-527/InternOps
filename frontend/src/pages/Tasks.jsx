@@ -88,13 +88,16 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
     );
   };
 
-  const isSubmitting = submitMutation.isPending && submitMutation.variables?.taskId === task.id;
+  const isSubmitting =
+    submitMutation.isPending && submitMutation.variables?.taskId === task.id;
 
   return (
     <Card className="p-5 card-hover">
       <div className="flex items-start gap-3">
         <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-600 text-white flex items-center justify-center text-xl shrink-0">
-          {PLATFORM_ICON[task.target_platform] || <Target className="w-5 h-5" />}
+          {PLATFORM_ICON[task.target_platform] || (
+            <Target className="w-5 h-5" />
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -139,10 +142,7 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
 
       <div className="flex items-center gap-2 mt-4">
         {canVerify && (
-          <Btn
-            variant="outline"
-            onClick={() => setShowProofs((prev) => !prev)}
-          >
+          <Btn variant="outline" onClick={() => setShowProofs((prev) => !prev)}>
             {showProofs ? 'Hide proofs' : 'View proofs'}
           </Btn>
         )}
@@ -181,7 +181,7 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
               </label>
             </div>
 
-            <label 
+            <label
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-green-600 text-white cursor-pointer hover:shadow-lg transition w-max ${
                 isSubmitting ? 'opacity-50 pointer-events-none' : ''
               }`}
@@ -202,20 +202,32 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
 
       {showProofs && (
         <div className="mt-4 border-t pt-4 space-y-2 animate-fade-in">
-          <h4 className="text-sm font-semibold text-gray-700">Proof submissions</h4>
+          <h4 className="text-sm font-semibold text-gray-700">
+            Proof submissions
+          </h4>
           {isLoadingProofs ? (
             <div className="py-2 text-xs text-gray-400">Loading proofs...</div>
           ) : !proofs?.length ? (
             <p className="text-xs text-gray-400">No submissions yet.</p>
           ) : (
             proofs.map((p) => {
-              const normalized = p.image_path?.replace(/\\/g, '/').replace(/^\/+/, '');
-              const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+              const normalized = p.image_path
+                ?.replace(/\\/g, '/')
+                .replace(/^\/+/, '');
+              const base = (import.meta.env.VITE_API_BASE_URL || '').replace(
+                /\/+$/,
+                ''
+              );
               const src = base ? `${base}/${normalized}` : `/${normalized}`;
-              const isVerifying = verifyMutation.isPending && verifyMutation.variables?.proofId === p.id;
+              const isVerifying =
+                verifyMutation.isPending &&
+                verifyMutation.variables?.proofId === p.id;
 
               return (
-                <div key={p.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-2">
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 bg-gray-50 rounded-xl p-2"
+                >
                   {p.image_path && (
                     <img
                       src={src}
@@ -237,17 +249,25 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
                     </div>
                     <p className="text-gray-400 mt-1 truncate">
                       Intern:{' '}
-                      {p.intern_name || p.intern_email || `${p.intern_id.slice(0, 8)}…`}
+                      {p.intern_name ||
+                        p.intern_email ||
+                        `${p.intern_id.slice(0, 8)}…`}
                     </p>
                   </div>
                   {canVerify && p.status === 'PENDING' && (
                     <Btn
                       variant="success"
                       disabled={isVerifying}
-                      onClick={() => verifyMutation.mutate({ proofId: p.id, taskId: task.id })}
+                      onClick={() =>
+                        verifyMutation.mutate({
+                          proofId: p.id,
+                          taskId: task.id,
+                        })
+                      }
                     >
                       <span className="flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" /> {isVerifying ? 'Verifying...' : 'Verify'}
+                        <CheckCircle className="w-4 h-4" />{' '}
+                        {isVerifying ? 'Verifying...' : 'Verify'}
                       </span>
                     </Btn>
                   )}
@@ -267,7 +287,9 @@ export default function Tasks() {
   const [showForm, setShowForm] = useState(false);
 
   const canCreateTask = ['ADMIN', 'SENIOR_TL'].includes(user?.role);
-  const canVerify = ['ADMIN', 'CAPTAIN', 'TL', 'SENIOR_TL'].includes(user?.role);
+  const canVerify = ['ADMIN', 'CAPTAIN', 'TL', 'SENIOR_TL'].includes(
+    user?.role
+  );
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks'],
