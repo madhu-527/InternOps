@@ -13,12 +13,12 @@ import {
   Clock,
   Plus,
   X,
+  Trash2,
 } from 'lucide-react';
 import api from '../lib/axios';
 import useAuthStore from '../store/auth';
 import CreateTaskForm from '../components/CreateTaskForm';
 import {
-  PageHeader,
   Card,
   Btn,
   Badge,
@@ -37,7 +37,14 @@ const PLATFORM_ICON = {
 const overdue = (d) => new Date(d) < new Date();
 
 // 💡 Extracted TaskCard to isolate state per task item
-function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
+function TaskCard({
+  task,
+  user,
+  canVerify,
+  verifyMutation,
+  submitMutation,
+  deleteMutation,
+}) {
   const [didComment, setDidComment] = useState(false);
   const [didRepost, setDidRepost] = useState(false);
   const [didShare, setDidShare] = useState(false);
@@ -101,7 +108,7 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-bold text-gray-800">{task.title}</h3>
+            <h3 className="font-bold text-gray-800 dark:text-white">{task.title}</h3>
             {task.target_platform && (
               <Badge color="purple">{task.target_platform}</Badge>
             )}
@@ -112,15 +119,15 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
             )}
           </div>
           {task.description && (
-            <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{task.description}</p>
           )}
-          <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+         <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-gray-500">
             {task.task_link && (
               <a
                 href={task.task_link}
                 target="_blank"
                 rel="noreferrer"
-                className="text-indigo-600 hover:underline flex items-center gap-1"
+                className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
               >
                 <LinkIcon className="w-3.5 h-3.5" /> Task link
               </a>
@@ -202,13 +209,13 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
 
       {showProofs && (
         <div className="mt-4 border-t pt-4 space-y-2 animate-fade-in">
-          <h4 className="text-sm font-semibold text-gray-700">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-white">
             Proof submissions
           </h4>
           {isLoadingProofs ? (
-            <div className="py-2 text-xs text-gray-400">Loading proofs...</div>
+            <div className="py-2 text-xs text-gray-400 dark:text-gray-500">Loading proofs...</div>
           ) : !proofs?.length ? (
-            <p className="text-xs text-gray-400">No submissions yet.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">No submissions yet.</p>
           ) : (
             proofs.map((p) => {
               const normalized = p.image_path
@@ -226,7 +233,7 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
               return (
                 <div
                   key={p.id}
-                  className="flex items-center gap-3 bg-gray-50 rounded-xl p-2"
+                  className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800/70 rounded-xl p-2"
                 >
                   {p.image_path && (
                     <img
@@ -247,7 +254,7 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
                       {p.did_repost && <Badge color="purple">Repost</Badge>}
                       {p.did_share && <Badge color="green">Share</Badge>}
                     </div>
-                    <p className="text-gray-400 mt-1 truncate">
+                    <p className="text-gray-400 dark:text-gray-500 mt-1 truncate">
                       Intern:{' '}
                       {p.intern_name ||
                         p.intern_email ||
@@ -271,6 +278,25 @@ function TaskCard({ task, user, canVerify, verifyMutation, submitMutation }) {
                       </span>
                     </Btn>
                   )}
+                  {user?.role === 'ADMIN' && (
+  <Btn
+    variant="outline"
+    className="text-red-500 border-red-300 hover:bg-red-50"
+    onClick={() => {
+      if (confirm('Delete this proof? This cannot be undone.')) {
+        deleteMutation.mutate({
+          proofId: p.id,
+          taskId: task.id,
+        });
+      }
+    }}
+  >
+    <span className="flex items-center gap-1">
+      <Trash2 className="w-4 h-4" />
+      Delete
+    </span>
+  </Btn>
+)}
                 </div>
               );
             })
@@ -321,6 +347,14 @@ export default function Tasks() {
       queryClient.invalidateQueries({ queryKey: ['proofs', variables.taskId] });
     },
   });
+  const deleteMutation = useMutation({
+  mutationFn: ({ proofId }) => api.delete(`/proofs/${proofId}`),
+  onSuccess: (_, variables) => {
+    queryClient.invalidateQueries({
+      queryKey: ['proofs', variables.taskId],
+    });
+  },
+});
 
   return (
     <div>
@@ -330,10 +364,10 @@ export default function Tasks() {
             <Target className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white tracking-tight">
               Social Media Tasks
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Campaigns & proof verification
             </p>
           </div>
@@ -375,14 +409,15 @@ export default function Tasks() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {tasks.map((t) => (
-            <TaskCard
-              key={t.id}
-              task={t}
-              user={user}
-              canVerify={canVerify}
-              verifyMutation={verifyMutation}
-              submitMutation={submitMutation}
-            />
+           <TaskCard
+  key={t.id}
+  task={t}
+  user={user}
+  canVerify={canVerify}
+  verifyMutation={verifyMutation}
+  submitMutation={submitMutation}
+  deleteMutation={deleteMutation}
+/>
           ))}
         </div>
       )}
