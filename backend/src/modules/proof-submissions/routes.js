@@ -48,11 +48,11 @@ async function routes(fastify) {
       if (!data)
         return reply.status(400).send({ error: 'Image file required' });
 
-   const task_id = data.fields?.task_id?.value;
+      const task_id = data.fields?.task_id?.value;
 
-if (!task_id) {
-  return reply.status(400).send({ error: 'task_id required' });
-}
+      if (!task_id) {
+        return reply.status(400).send({ error: 'task_id required' });
+      }
 
       // Validate MIME type and extension (declared values)
       const ext = path.extname(data.filename).toLowerCase();
@@ -103,18 +103,18 @@ if (!task_id) {
 
       writeStream.write(firstChunk);
 
-await pipeline(data.file, writeStream);
+      await pipeline(data.file, writeStream);
 
-const didComment = data.fields?.didComment?.value === 'true';
-const didRepost = data.fields?.didRepost?.value === 'true';
-const didShare = data.fields?.didShare?.value === 'true';
+      const didComment = data.fields?.didComment?.value === 'true';
+      const didRepost = data.fields?.didRepost?.value === 'true';
+      const didShare = data.fields?.didShare?.value === 'true';
 
-if (!didComment && !didRepost && !didShare) {
-  await fs.promises.unlink(uploadPath).catch(() => {});
-  return reply.status(400).send({
-    error: 'At least one engagement action must be selected.',
-  });
-}
+      if (!didComment && !didRepost && !didShare) {
+        await fs.promises.unlink(uploadPath).catch(() => {});
+        return reply.status(400).send({
+          error: 'At least one engagement action must be selected.',
+        });
+      }
 
       const dbSavedPath = ['uploads', filename].join('/');
       const proof = await repo.submitProof(task_id, req.user.id, dbSavedPath, {

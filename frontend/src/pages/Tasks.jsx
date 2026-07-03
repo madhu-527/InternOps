@@ -18,13 +18,7 @@ import {
 import api from '../lib/axios';
 import useAuthStore from '../store/auth';
 import CreateTaskForm from '../components/CreateTaskForm';
-import {
-  Card,
-  Btn,
-  Badge,
-  EmptyState,
-  Spinner,
-} from '../components/ui';
+import { Card, Btn, Badge, EmptyState, Spinner } from '../components/ui';
 
 const PLATFORM_ICON = {
   LinkedIn: <Briefcase className="w-5 h-5" />,
@@ -108,7 +102,9 @@ function TaskCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-bold text-gray-800 dark:text-white">{task.title}</h3>
+            <h3 className="font-bold text-gray-800 dark:text-white">
+              {task.title}
+            </h3>
             {task.target_platform && (
               <Badge color="purple">{task.target_platform}</Badge>
             )}
@@ -119,9 +115,11 @@ function TaskCard({
             )}
           </div>
           {task.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{task.description}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              {task.description}
+            </p>
           )}
-         <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-gray-500">
+          <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-gray-500">
             {task.task_link && (
               <a
                 href={task.task_link}
@@ -213,9 +211,13 @@ function TaskCard({
             Proof submissions
           </h4>
           {isLoadingProofs ? (
-            <div className="py-2 text-xs text-gray-400 dark:text-gray-500">Loading proofs...</div>
+            <div className="py-2 text-xs text-gray-400 dark:text-gray-500">
+              Loading proofs...
+            </div>
           ) : !proofs?.length ? (
-            <p className="text-xs text-gray-400 dark:text-gray-500">No submissions yet.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              No submissions yet.
+            </p>
           ) : (
             proofs.map((p) => {
               const normalized = p.image_path
@@ -279,24 +281,26 @@ function TaskCard({
                     </Btn>
                   )}
                   {user?.role === 'ADMIN' && (
-  <Btn
-    variant="outline"
-    className="text-red-500 border-red-300 hover:bg-red-50"
-    onClick={() => {
-      if (confirm('Delete this proof? This cannot be undone.')) {
-        deleteMutation.mutate({
-          proofId: p.id,
-          taskId: task.id,
-        });
-      }
-    }}
-  >
-    <span className="flex items-center gap-1">
-      <Trash2 className="w-4 h-4" />
-      Delete
-    </span>
-  </Btn>
-)}
+                    <Btn
+                      variant="outline"
+                      className="text-red-500 border-red-300 hover:bg-red-50"
+                      onClick={() => {
+                        if (
+                          confirm('Delete this proof? This cannot be undone.')
+                        ) {
+                          deleteMutation.mutate({
+                            proofId: p.id,
+                            taskId: task.id,
+                          });
+                        }
+                      }}
+                    >
+                      <span className="flex items-center gap-1">
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </span>
+                    </Btn>
+                  )}
                 </div>
               );
             })
@@ -348,13 +352,13 @@ export default function Tasks() {
     },
   });
   const deleteMutation = useMutation({
-  mutationFn: ({ proofId }) => api.delete(`/proofs/${proofId}`),
-  onSuccess: (_, variables) => {
-    queryClient.invalidateQueries({
-      queryKey: ['proofs', variables.taskId],
-    });
-  },
-});
+    mutationFn: ({ proofId }) => api.delete(`/proofs/${proofId}`),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['proofs', variables.taskId],
+      });
+    },
+  });
 
   return (
     <div>
@@ -409,15 +413,15 @@ export default function Tasks() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {tasks.map((t) => (
-           <TaskCard
-  key={t.id}
-  task={t}
-  user={user}
-  canVerify={canVerify}
-  verifyMutation={verifyMutation}
-  submitMutation={submitMutation}
-  deleteMutation={deleteMutation}
-/>
+            <TaskCard
+              key={t.id}
+              task={t}
+              user={user}
+              canVerify={canVerify}
+              verifyMutation={verifyMutation}
+              submitMutation={submitMutation}
+              deleteMutation={deleteMutation}
+            />
           ))}
         </div>
       )}
