@@ -44,12 +44,12 @@ async function routes(fastify) {
     },
     async (req, reply) => {
       const parts = req.parts();
-     let task_id = null;
-let didComment = false;
-let didRepost = false;
-let didShare = false;
+      let task_id = null;
+      let didComment = false;
+      let didRepost = false;
+      let didShare = false;
 
-const filesData = [];
+      const filesData = [];
 
       for await (const part of parts) {
         if (part.type === 'file') {
@@ -62,22 +62,22 @@ const filesData = [];
               truncated: part.file.truncated,
             });
           }
-       } else {
-  switch (part.fieldname) {
-    case 'task_id':
-      task_id = part.value;
-      break;
-    case 'didComment':
-      didComment = part.value === 'true';
-      break;
-    case 'didRepost':
-      didRepost = part.value === 'true';
-      break;
-    case 'didShare':
-      didShare = part.value === 'true';
-      break;
-  }
-}
+        } else {
+          switch (part.fieldname) {
+            case 'task_id':
+              task_id = part.value;
+              break;
+            case 'didComment':
+              didComment = part.value === 'true';
+              break;
+            case 'didRepost':
+              didRepost = part.value === 'true';
+              break;
+            case 'didShare':
+              didShare = part.value === 'true';
+              break;
+          }
+        }
       }
 
       if (!task_id) {
@@ -137,23 +137,22 @@ const filesData = [];
         await fs.promises.writeFile(uploadPath, data.buffer);
         dbSavedPaths.push(['uploads', filename].join('/'));
       }
-if (!didComment && !didRepost && !didShare) {
-  return reply.status(400).send({
-    error: 'At least one engagement action must be selected.',
-  });
-}
-     const proof = await repo.submitProofWithImages(
-  task_id,
-  req.user.id,
-  dbSavedPaths,
-  {
-    didComment,
-    didRepost,
-    didShare,
-  }
-);
+      if (!didComment && !didRepost && !didShare) {
+        return reply.status(400).send({
+          error: 'At least one engagement action must be selected.',
+        });
+      }
+      const proof = await repo.submitProofWithImages(
+        task_id,
+        req.user.id,
+        dbSavedPaths,
+        {
+          didComment,
+          didRepost,
+          didShare,
+        }
+      );
 
-      
       req.auditOnResponse = {
         userId: req.user.id,
         action: 'PROOF_SUBMITTED',
