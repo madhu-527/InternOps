@@ -44,8 +44,12 @@ async function routes(fastify) {
     },
     async (req, reply) => {
       const parts = req.parts();
-      let task_id = null;
-      const filesData = [];
+     let task_id = null;
+let didComment = false;
+let didRepost = false;
+let didShare = false;
+
+const filesData = [];
 
       for await (const part of parts) {
         if (part.type === 'file') {
@@ -58,11 +62,22 @@ async function routes(fastify) {
               truncated: part.file.truncated,
             });
           }
-        } else {
-          if (part.fieldname === 'task_id') {
-            task_id = part.value;
-          }
-        }
+       } else {
+  switch (part.fieldname) {
+    case 'task_id':
+      task_id = part.value;
+      break;
+    case 'didComment':
+      didComment = part.value === 'true';
+      break;
+    case 'didRepost':
+      didRepost = part.value === 'true';
+      break;
+    case 'didShare':
+      didShare = part.value === 'true';
+      break;
+  }
+}
       }
 
       if (!task_id) {
@@ -122,30 +137,23 @@ async function routes(fastify) {
         await fs.promises.writeFile(uploadPath, data.buffer);
         dbSavedPaths.push(['uploads', filename].join('/'));
       }
+if (!didComment && !didRepost && !didShare) {
+  return reply.status(400).send({
+    error: 'At least one engagement action must be selected.',
+  });
+}
+     const proof = await repo.submitProofWithImages(
+  task_id,
+  req.user.id,
+  dbSavedPaths,
+  {
+    didComment,
+    didRepost,
+    didShare,
+  }
+);
 
-      const proof = await repo.submitProofWithImages(
-        task_id,
-        req.user.id,
-        dbSavedPaths
-      );
-
-      const didComment = data.fields?.didComment?.value === 'true';
-      const didRepost = data.fields?.didRepost?.value === 'true';
-      const didShare = data.fields?.didShare?.value === 'true';
-
-      if (!didComment && !didRepost && !didShare) {
-        await fs.promises.unlink(uploadPath).catch(() => {});
-        return reply.status(400).send({
-          error: 'At least one engagement action must be selected.',
-        });
-      }
-
-      const dbSavedPath = ['uploads', filename].join('/');
-      const proof = await repo.submitProof(task_id, req.user.id, dbSavedPath, {
-        didComment,
-        didRepost,
-        didShare,
-      });
+      
       req.auditOnResponse = {
         userId: req.user.id,
         action: 'PROOF_SUBMITTED',
