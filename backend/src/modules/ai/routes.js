@@ -18,7 +18,7 @@ const chatBodySchema = z.object({
   messages: z
     .array(
       z.object({
-        role: z.enum(['user', 'assistant']),
+        role: z.enum(['user', 'assistant', 'system']),
         content: z.string(),
       })
     )
@@ -41,7 +41,18 @@ async function routes(fastify) {
         rateLimit: {
           max: AI_CHAT_RATE_LIMIT,
           timeWindow: '1 minute',
-          keyGenerator: (req) => req.user?.id || req.ip,
+          keyGenerator: (req) => {
+            if (req.user?.id) return req.user.id;
+            const authHeader = req.headers.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+              try {
+                const { verifyAccessToken } = require('../../utils/tokens');
+                const decoded = verifyAccessToken(authHeader.split(' ')[1]);
+                return decoded.id;
+              } catch (err) {}
+            }
+            return req.ip;
+          },
         },
       },
     },
@@ -49,7 +60,7 @@ async function routes(fastify) {
       if (req.body && JSON.stringify(req.body).length > 2000000) {
         return reply.status(400).send({ error: 'Payload too large' });
       }
-      const ALLOWED_ROLES = ['user', 'assistant'];
+      const ALLOWED_ROLES = ['user', 'assistant', 'system'];
 
       let finalMessages = [];
       const { messages, prompt } = req.body || {};

@@ -315,6 +315,18 @@ export default function Tasks() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [draftFiles, setDraftFiles] = useState({
+    taskId: null,
+    files: [],
+    previews: [],
+  });
+  const [deletingProofId, setDeletingProofId] = useState(null);
+
+  const showNotification = (msg) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 5000);
+  };
 
   const canCreateTask = ['ADMIN', 'SENIOR_TL'].includes(user?.role);
   const canVerify = ['ADMIN', 'CAPTAIN', 'TL', 'SENIOR_TL'].includes(
@@ -326,25 +338,47 @@ export default function Tasks() {
     queryFn: () => api.get('/tasks').then((res) => res.data),
   });
 
-  const submitMutation = useMutation({
-    mutationFn: ({ taskId, file, didComment, didRepost, didShare }) => {
-      const form = new FormData();
-      form.append('task_id', taskId);
+const { data: proofs, refetch: refetchProofs } = useQuery({
+  queryKey: ['proofs', selectedTask],
+  queryFn: () =>
+    api.get(`/proofs/task/${selectedTask}`).then((res) => res.data),
+  enabled: !!selectedTask,
+});
+
+const { data: myProofs } = useQuery({
+  queryKey: ['myProofs'],
+  queryFn: () => api.get('/proofs/my').then((res) => res.data),
+  enabled: user?.role === 'INTERN',
+});
+
+const submitMutation = useMutation({
+  mutationFn: async ({ taskId, files, didComment, didRepost, didShare }) => {
+    const form = new FormData();
+    form.append('task_id', taskId);
+
+    files.forEach((file) => {
       form.append('image', file);
-      form.append('didComment', didComment);
-      form.append('didRepost', didRepost);
-      form.append('didShare', didShare);
+    });
 
-      return api.post('/proofs/submit', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['proofs', variables.taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    },
-  });
+    form.append('didComment', didComment);
+    form.append('didRepost', didRepost);
+    form.append('didShare', didShare);
 
+    return api.post('/proofs/submit', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  onSuccess: (_, variables) => {
+    setDraftFiles({ taskId: null, files: [], previews: [] });
+    refetchProofs();
+
+    queryClient.invalidateQueries({ queryKey: ['proofs', variables.taskId] });
+    queryClient.invalidateQueries({ queryKey: ['proofs'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['myProofs'] });
+  },
+});
   const verifyMutation = useMutation({
     mutationFn: ({ proofId }) => api.patch(`/proofs/${proofId}/verify`),
     onSuccess: (_, variables) => {
@@ -352,19 +386,73 @@ export default function Tasks() {
     },
   });
   const deleteMutation = useMutation({
-    mutationFn: ({ proofId }) => api.delete(`/proofs/${proofId}`),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ['proofs', variables.taskId],
-      });
+  mutationFn: ({ proofId }) => api.delete(`/proofs/${proofId}`),
+  onSuccess: (_, variables) => {
+    setDeletingProofId(null);
+    showNotification('Proof deleted successfully');
+    refetchProofs();
+
+    queryClient.invalidateQueries({ queryKey: ['proofs', variables.taskId] });
+    queryClient.invalidateQueries({ queryKey: ['proofs'] });
+    queryClient.invalidateQueries({ queryKey: ['myProofs'] });
+  },
+});
+
+  const deleteImageMutation = useMutation({
+    mutationFn: (imageId) => api.delete(`/proofs/images/${imageId}`),
+    onSuccess: () => {
+      showNotification('Image deleted successfully');
+      refetchProofs();
     },
   });
 
+  const handleFileSelect = (e, taskId) => {
+    let files = Array.from(e.target.files);
+
+    if (!files.length) return;
+
+    if (files.length > 5) {
+      showNotification(
+        'You can only upload up to 5 images at a time. Only the first 5 images were kept.'
+      );
+      files = files.slice(0, 5); // Take max 5 files
+    }
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        showNotification('Only image files are allowed.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification('Each file size must be under 5MB.');
+        return;
+      }
+    }
+
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setDraftFiles({ taskId, files, previews });
+  };
+
+  const overdue = (d) => new Date(d) < new Date();
+
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 text-purple-600 rounded-lg shadow-sm">
+    <div className="animate-fade-in-up">
+      {notification && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-200 flex items-center justify-between shadow-sm animate-fade-in">
+          <span className="font-semibold text-sm">{notification}</span>
+          <button
+            onClick={() => setNotification(null)}
+            className="p-1 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-full transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Professional Header Block */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-950/40 border border-violet-100 dark:border-violet-900/60 text-violet-600 dark:text-violet-300 flex items-center justify-center shadow-sm">
             <Target className="w-6 h-6" />
           </div>
           <div>
@@ -411,18 +499,307 @@ export default function Tasks() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {tasks.map((t) => (
-            <TaskCard
-              key={t.id}
-              task={t}
-              user={user}
-              canVerify={canVerify}
-              verifyMutation={verifyMutation}
-              submitMutation={submitMutation}
-              deleteMutation={deleteMutation}
-            />
-          ))}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+          {tasks.map((t) => {
+            const isOverdue = t.deadline && overdue(t.deadline);
+
+            return (
+              <Card
+                key={t.id}
+                className="p-5 md:p-6 card-hover border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-[0_14px_35px_rgba(15,23,42,0.06)] dark:shadow-none"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 via-indigo-500 to-blue-600 text-white flex items-center justify-center text-xl shrink-0 shadow-md">
+                    {PLATFORM_ICON[t.target_platform] || (
+                      <Target className="w-5 h-5" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
+                        {t.title}
+                      </h3>
+
+                      {t.target_platform && (
+                        <Badge color="purple">{t.target_platform}</Badge>
+                      )}
+
+                      {t.deadline && (
+                        <Badge color={isOverdue ? 'red' : 'green'}>
+                          {isOverdue ? 'Overdue' : 'Active'}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {t.description && (
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+                        {t.description}
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-slate-500 dark:text-slate-400">
+                      {t.task_link && (
+                        <a
+                          href={t.task_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-semibold"
+                        >
+                          <LinkIcon className="w-3.5 h-3.5" /> Task link
+                        </a>
+                      )}
+
+                      {t.deadline && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {new Date(t.deadline).toLocaleString('en-IN', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                            timeZone: 'Asia/Kolkata',
+                          })}{' '}
+                          IST
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 mt-5 pt-4 border-t border-slate-200 dark:border-slate-700">
+                  {canVerify && (
+                    <Btn
+                      variant="outline"
+                      className="rounded-2xl"
+                      onClick={() =>
+                        setSelectedTask(selectedTask === t.id ? null : t.id)
+                      }
+                    >
+                      {selectedTask === t.id ? 'Hide proofs' : 'View proofs'}
+                    </Btn>
+                  )}
+
+                  {user?.role === 'INTERN' &&
+                    (myProofs?.some((p) => p.task_id === t.id) ? (
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                        <CheckCircle className="w-4 h-4" /> Submitted
+                      </div>
+                    ) : draftFiles.taskId === t.id ? (
+                      <div className="flex flex-col gap-3 w-full animate-fade-in">
+                        <div className="flex gap-2 overflow-x-auto pb-2">
+                          {draftFiles.previews.map((src, i) => (
+                            <img
+                              key={i}
+                              src={src}
+                              alt="Preview"
+                              className="w-16 h-16 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm"
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Btn
+                            variant="outline"
+                            className="text-sm rounded-2xl py-1.5"
+                            onClick={() =>
+                              setDraftFiles({
+                                taskId: null,
+                                files: [],
+                                previews: [],
+                              })
+                            }
+                          >
+                            Cancel
+                          </Btn>
+                          <Btn
+                            variant="success"
+                            className="text-sm rounded-2xl py-1.5 flex items-center gap-2"
+                            onClick={() =>
+                              submitMutation.mutate({
+                                taskId: t.id,
+                                files: draftFiles.files,
+                              })
+                            }
+                            disabled={submitMutation.isPending}
+                          >
+                            {submitMutation.isPending && (
+                              <span className="w-3 h-3 rounded-full border-2 border-t-white border-white/30 animate-spin" />
+                            )}
+                            {submitMutation.isPending
+                              ? 'Submitting...'
+                              : 'Confirm Upload'}
+                          </Btn>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white cursor-pointer hover:shadow-lg hover:shadow-emerald-200 dark:hover:shadow-none transition">
+                        <Upload className="w-4 h-4" /> Select Proof
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(e) => handleFileSelect(e, t.id)}
+                          className="hidden"
+                        />
+                      </label>
+                    ))}
+                </div>
+
+                {selectedTask === t.id && (
+                  <div className="mt-5 border-t border-slate-200 dark:border-slate-700 pt-5 space-y-3 animate-fade-in">
+                    <div className="flex items-center justify-between gap-3">
+                      <h4 className="text-sm font-extrabold text-slate-800 dark:text-white">
+                        Proof submissions
+                      </h4>
+
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {proofs?.length || 0} submission
+                        {proofs?.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
+
+                    {!proofs?.length ? (
+                      <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-4">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          No submissions yet.
+                        </p>
+                      </div>
+                    ) : (
+                      proofs.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex flex-col md:flex-row items-start md:items-center gap-3 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 w-full"
+                        >
+                          {(() => {
+                            const images =
+                              p.images && p.images.length > 0
+                                ? p.images
+                                : p.image_path
+                                  ? [{ image_path: p.image_path }]
+                                  : [];
+                            if (!images.length) return null;
+
+                            return (
+                              <div className="flex gap-2 overflow-x-auto max-w-[200px] md:max-w-[300px]">
+                                {images.map((imgObj, i) => {
+                                  const imgPath = imgObj.image_path || imgObj;
+                                  const normalized = imgPath
+                                    .replace(/\\/g, '/')
+                                    .replace(/^\/+/, '');
+                                  const base = (
+                                    import.meta.env.VITE_API_BASE_URL || ''
+                                  ).replace(/\/+$/, '');
+                                  const src = base
+                                    ? `${base}/${normalized}`
+                                    : `/${normalized}`;
+                                  return (
+                                    <div
+                                      key={i}
+                                      className="relative group shrink-0"
+                                    >
+                                      <img
+                                        src={src}
+                                        alt="proof"
+                                        className="w-14 h-14 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer hover:opacity-80 transition"
+                                        onClick={() =>
+                                          window.open(src, '_blank')
+                                        }
+                                        onError={(e) => {
+                                          e.currentTarget.style.visibility =
+                                            'hidden';
+                                        }}
+                                      />
+                                      {user?.role === 'ADMIN' && imgObj.id && (
+                                        <button
+                                          type="button"
+                                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm hover:bg-red-600"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteImageMutation.mutate(
+                                              imgObj.id
+                                            );
+                                          }}
+                                          title="Delete this image"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+
+                          <div className="flex-1 min-w-[120px] w-full md:w-auto text-xs overflow-hidden">
+                            <Badge
+                              color={
+                                p.status === 'VERIFIED' ? 'green' : 'yellow'
+                              }
+                            >
+                              {p.status}
+                            </Badge>
+
+                            <p className="text-slate-500 dark:text-slate-400 mt-2 truncate w-full">
+                              Intern:{' '}
+                              {p.intern_name ||
+                                p.intern_email ||
+                                `${p.intern_id.slice(0, 8)}…`}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto mt-2 md:mt-0 md:ml-auto">
+                            {canVerify && p.status === 'PENDING' && (
+                              <Btn
+                                variant="success"
+                                className="rounded-2xl"
+                                onClick={() => verifyMutation.mutate(p.id)}
+                              >
+                                <span className="flex items-center gap-1">
+                                  <CheckCircle className="w-4 h-4" /> Verify
+                                </span>
+                              </Btn>
+                            )}
+
+                            {user?.role === 'ADMIN' &&
+                              (deletingProofId === p.id ? (
+                                <div className="flex items-center gap-2 animate-fade-in">
+                                  <Btn
+                                    variant="outline"
+                                    className="rounded-2xl py-1 px-3 text-xs"
+                                    onClick={() => setDeletingProofId(null)}
+                                  >
+                                    Cancel
+                                  </Btn>
+                                  <Btn
+                                    variant="danger"
+                                    className="rounded-2xl py-1 px-3 text-xs bg-red-500 hover:bg-red-600 text-white border-transparent"
+                                    onClick={() => deleteMutation.mutate(p.id)}
+                                    disabled={deleteMutation.isPending}
+                                  >
+                                    {deleteMutation.isPending
+                                      ? 'Deleting...'
+                                      : 'Confirm'}
+                                  </Btn>
+                                </div>
+                              ) : (
+                                <Btn
+                                  variant="outline"
+                                  className="rounded-2xl text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                  onClick={() => setDeletingProofId(p.id)}
+                                >
+                                  <span className="flex items-center gap-1">
+                                    <Trash2 className="w-4 h-4" /> Delete
+                                  </span>
+                                </Btn>
+                              ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
