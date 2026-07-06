@@ -338,47 +338,47 @@ export default function Tasks() {
     queryFn: () => api.get('/tasks').then((res) => res.data),
   });
 
-const { data: proofs, refetch: refetchProofs } = useQuery({
-  queryKey: ['proofs', selectedTask],
-  queryFn: () =>
-    api.get(`/proofs/task/${selectedTask}`).then((res) => res.data),
-  enabled: !!selectedTask,
-});
+  const { data: proofs, refetch: refetchProofs } = useQuery({
+    queryKey: ['proofs', selectedTask],
+    queryFn: () =>
+      api.get(`/proofs/task/${selectedTask}`).then((res) => res.data),
+    enabled: !!selectedTask,
+  });
 
-const { data: myProofs } = useQuery({
-  queryKey: ['myProofs'],
-  queryFn: () => api.get('/proofs/my').then((res) => res.data),
-  enabled: user?.role === 'INTERN',
-});
+  const { data: myProofs } = useQuery({
+    queryKey: ['myProofs'],
+    queryFn: () => api.get('/proofs/my').then((res) => res.data),
+    enabled: user?.role === 'INTERN',
+  });
 
-const submitMutation = useMutation({
-  mutationFn: async ({ taskId, files, didComment, didRepost, didShare }) => {
-    const form = new FormData();
-    form.append('task_id', taskId);
+  const submitMutation = useMutation({
+    mutationFn: async ({ taskId, files, didComment, didRepost, didShare }) => {
+      const form = new FormData();
+      form.append('task_id', taskId);
 
-    files.forEach((file) => {
-      form.append('image', file);
-    });
+      files.forEach((file) => {
+        form.append('image', file);
+      });
 
-    form.append('didComment', didComment);
-    form.append('didRepost', didRepost);
-    form.append('didShare', didShare);
+      form.append('didComment', didComment);
+      form.append('didRepost', didRepost);
+      form.append('didShare', didShare);
 
-    return api.post('/proofs/submit', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-  },
+      return api.post('/proofs/submit', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
 
-  onSuccess: (_, variables) => {
-    setDraftFiles({ taskId: null, files: [], previews: [] });
-    refetchProofs();
+    onSuccess: (_, variables) => {
+      setDraftFiles({ taskId: null, files: [], previews: [] });
+      refetchProofs();
 
-    queryClient.invalidateQueries({ queryKey: ['proofs', variables.taskId] });
-    queryClient.invalidateQueries({ queryKey: ['proofs'] });
-    queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    queryClient.invalidateQueries({ queryKey: ['myProofs'] });
-  },
-});
+      queryClient.invalidateQueries({ queryKey: ['proofs', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['proofs'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['myProofs'] });
+    },
+  });
   const verifyMutation = useMutation({
     mutationFn: ({ proofId }) => api.patch(`/proofs/${proofId}/verify`),
     onSuccess: (_, variables) => {
@@ -386,17 +386,17 @@ const submitMutation = useMutation({
     },
   });
   const deleteMutation = useMutation({
-  mutationFn: ({ proofId }) => api.delete(`/proofs/${proofId}`),
-  onSuccess: (_, variables) => {
-    setDeletingProofId(null);
-    showNotification('Proof deleted successfully');
-    refetchProofs();
+    mutationFn: ({ proofId }) => api.delete(`/proofs/${proofId}`),
+    onSuccess: (_, variables) => {
+      setDeletingProofId(null);
+      showNotification('Proof deleted successfully');
+      refetchProofs();
 
-    queryClient.invalidateQueries({ queryKey: ['proofs', variables.taskId] });
-    queryClient.invalidateQueries({ queryKey: ['proofs'] });
-    queryClient.invalidateQueries({ queryKey: ['myProofs'] });
-  },
-});
+      queryClient.invalidateQueries({ queryKey: ['proofs', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['proofs'] });
+      queryClient.invalidateQueries({ queryKey: ['myProofs'] });
+    },
+  });
 
   const deleteImageMutation = useMutation({
     mutationFn: (imageId) => api.delete(`/proofs/images/${imageId}`),
