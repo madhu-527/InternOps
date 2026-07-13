@@ -274,32 +274,24 @@ function GenerateCertificateModal({
     template_id: '',
   });
   useEffect(() => {
-  const root = document.getElementById('root');
+    const root = document.getElementById('root');
 
-  if (isOpen) {
-    document.body.classList.add('modal-open');
+    if (isOpen) {
+      document.body.classList.add('modal-open');
 
-    if (root) {
-      root.classList.add(
-        'blur-sm',
-        'transition-all',
-        'duration-300'
-      );
+      if (root) {
+        root.classList.add('blur-sm', 'transition-all', 'duration-300');
+      }
     }
-  }
 
-  return () => {
-    document.body.classList.remove('modal-open');
+    return () => {
+      document.body.classList.remove('modal-open');
 
-    if (root) {
-      root.classList.remove(
-        'blur-sm',
-        'transition-all',
-        'duration-300'
-      );
-    }
-  };
-}, [isOpen]);
+      if (root) {
+        root.classList.remove('blur-sm', 'transition-all', 'duration-300');
+      }
+    };
+  }, [isOpen]);
 
   const templateOptions = [
     {
@@ -343,8 +335,8 @@ function GenerateCertificateModal({
   };
 
   if (!isOpen) return null;
-return createPortal(
-  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between">

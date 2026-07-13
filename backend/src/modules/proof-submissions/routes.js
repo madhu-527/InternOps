@@ -170,7 +170,7 @@ async function routes(fastify) {
         task_id,
         req.user.id,
         dbSavedPaths,
-        {  
+        {
           didComment,
           didRepost,
           didShare,
