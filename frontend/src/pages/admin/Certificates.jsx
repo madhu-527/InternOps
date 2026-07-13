@@ -306,18 +306,6 @@ function GenerateCertificateModal({
     })),
   ];
 
-  const templateOptions = [
-    {
-      value: '',
-      label: templatesLoading
-        ? 'Loading templates...'
-        : 'Select a template (optional)',
-    },
-    ...templates.map((template) => ({
-      value: template.id,
-      label: template.name,
-    })),
-  ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
