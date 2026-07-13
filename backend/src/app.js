@@ -145,7 +145,7 @@ app.register(require('@fastify/rate-limit'), {
 
 app.register(require('@fastify/cookie'));
 
-app.addHook('onRequest', csrfMiddleware);
+app.addHook('preHandler', csrfMiddleware);
 // Sanitize all string fields in body, query, and params using sanitize-html
 // (allowlist of zero tags) to prevent XSS. Runs after body parsing.
 app.addHook('preHandler', sanitizationMiddleware);

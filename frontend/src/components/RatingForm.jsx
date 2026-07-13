@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import api from '../lib/axios';
+import useAuthStore from '../store/auth';
 import { Card, Btn, Textarea } from './ui';
 import RatingSuggestionCard from './RatingSuggestionCard';
 import CustomSelect from './CustomSelect';
 
 export default function RatingForm() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === 'ADMIN';
+  const [departmentId, setDepartmentId] = useState('');
   const [userId, setUserId] = useState('');
   const [score, setScore] = useState(10);
   const [remarks, setRemarks] = useState('');
@@ -19,6 +23,11 @@ export default function RatingForm() {
   const { data: reports = [] } = useQuery({
     queryKey: ['teamMembers'],
     queryFn: () => api.get('/team/members').then((res) => res.data),
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => api.get('/departments').then((res) => res.data),
   });
 
   const { data: suggestion, isLoading: suggestionLoading } = useQuery({
@@ -34,6 +43,11 @@ export default function RatingForm() {
     }
   }, [suggestion]);
 
+  const handleDepartmentChange = (deptId) => {
+    setDepartmentId(deptId);
+    setUserId('');
+  };
+
   const rateMutation = useMutation({
     mutationFn: (data) => api.post('/ratings', data),
     onSuccess: () => {
@@ -42,18 +56,32 @@ export default function RatingForm() {
       setMsg('✓ Rating submitted');
       setRemarks('');
       setUserId('');
+      setDepartmentId('');
       setScore(10);
       setTimeout(() => setMsg(''), 2000);
     },
     onError: (err) => setError(err.response?.data?.error || 'Failed'),
   });
 
-  const memberOptions = [
-    { value: '', label: 'Select member...' },
-    ...reports.map((u) => ({
-      value: u.id,
-      label: u.full_name || u.email,
+  const departmentOptions = [
+    { value: '', label: 'Select department...' },
+    ...departments.map((d) => ({
+      value: d.id,
+      label: d.name,
     })),
+  ];
+
+  const memberOptions = [
+    {
+      value: '',
+      label: departmentId ? 'Select member...' : 'Select department first...',
+    },
+    ...reports
+      .filter((u) => u.department_id === departmentId)
+      .map((u) => ({
+        value: u.id,
+        label: u.full_name || u.email,
+      })),
   ];
 
   // Dynamically extract the name or email of the selected team member
@@ -110,6 +138,22 @@ export default function RatingForm() {
       <form onSubmit={handleFormSubmit} className="space-y-5">
         <div>
           <label className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+            Department
+          </label>
+
+          <CustomSelect
+            value={departmentId}
+            onChange={handleDepartmentChange}
+            options={departmentOptions}
+            placeholder="Select department..."
+            className="w-full"
+            disabled={rateMutation.isPending}
+            searchable={true}
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
             Team Member
           </label>
 
@@ -117,9 +161,12 @@ export default function RatingForm() {
             value={userId}
             onChange={setUserId}
             options={memberOptions}
-            placeholder="Select member..."
+            placeholder={
+              departmentId ? 'Select member...' : 'Select department first...'
+            }
             className="w-full"
-            disabled={rateMutation.isPending}
+            disabled={rateMutation.isPending || !departmentId}
+            searchable={true}
           />
         </div>
 
