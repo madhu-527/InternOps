@@ -113,7 +113,10 @@ app.get(
 );
 
 app.register(require('@fastify/cors'), {
-  origin: config.nodeEnv === 'production' ? config.corsOrigin : true,
+  origin:
+    config.nodeEnv === 'production'
+      ? config.corsOrigin
+      : 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
@@ -142,7 +145,7 @@ app.register(require('@fastify/rate-limit'), {
 
 app.register(require('@fastify/cookie'));
 
-app.addHook('onRequest', csrfMiddleware);
+app.addHook('preHandler', csrfMiddleware);
 // Sanitize all string fields in body, query, and params using sanitize-html
 // (allowlist of zero tags) to prevent XSS. Runs after body parsing.
 app.addHook('preHandler', sanitizationMiddleware);

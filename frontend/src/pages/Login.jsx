@@ -94,7 +94,11 @@ export default function Login() {
       return setError('Email and password required');
 
     setError('');
-    loginMut.mutate({ email, password });
+
+    loginMut.mutate({
+      email,
+      password,
+    });
   };
 
   return (
