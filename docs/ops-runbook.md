@@ -12,13 +12,13 @@ InternOps is an enterprise-grade workforce management platform designed to strea
 
 ## Architecture
 
-| Component | Technology |
-|-----------|------------|
-| Frontend | React + Vite |
-| Backend | Node.js + Fastify |
-| Database | PostgreSQL 14 |
-| Authentication | JWT |
-| Monitoring | Prometheus + Grafana |
+| Component        | Technology              |
+| ---------------- | ----------------------- |
+| Frontend         | React + Vite            |
+| Backend          | Node.js + Fastify       |
+| Database         | PostgreSQL 14           |
+| Authentication   | JWT                     |
+| Monitoring       | Prometheus + Grafana    |
 | Containerization | Docker & Docker Compose |
 
 ---
@@ -220,10 +220,10 @@ After restoration:
 
 InternOps provides monitoring support using Prometheus and Grafana.
 
-| Service | Default Port |
-|----------|-------------:|
-| Prometheus | 9090 |
-| Grafana | 3000 |
+| Service    | Default Port |
+| ---------- | -----------: |
+| Prometheus |         9090 |
+| Grafana    |         3000 |
 
 Start the monitoring stack:
 
