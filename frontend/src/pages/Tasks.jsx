@@ -34,6 +34,8 @@ const overdue = (d) => new Date(d) < new Date();
 export default function Tasks() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
+  const TASKS_PER_PAGE = 20;
+const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [selectedProofTaskId, setSelectedProofTaskId] = useState(null);
   const [notification, setNotification] = useState(null);
@@ -72,10 +74,14 @@ export default function Tasks() {
     user?.role
   );
 
-  const { data: tasks, isLoading } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: () => api.get('/tasks').then((res) => res.data),
-  });
+const { data: tasks, isLoading } = useQuery({
+  queryKey: ['tasks', page],
+  queryFn: () =>
+    api
+      .get(`/tasks?page=${page}&limit=${TASKS_PER_PAGE}`)
+      .then((res) => res.data),
+});
+const hasMore = (tasks?.length ?? 0) === TASKS_PER_PAGE;
 
   const { data: proofs, refetch: refetchProofs } = useQuery({
     queryKey: ['proofs', selectedProofTaskId],
@@ -324,7 +330,8 @@ export default function Tasks() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+       <>
+  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
           {tasks.map((t) => {
             const isOverdue = t.deadline && overdue(t.deadline);
 
@@ -339,6 +346,7 @@ export default function Tasks() {
                       <Target className="w-5 h-5" />
                     )}
                   </div>
+                  
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
@@ -847,8 +855,28 @@ export default function Tasks() {
               </Card>
             );
           })}
-        </div>
+        </div> 
+         <div className="flex justify-center items-center gap-4 mt-8">
+      <Btn
+        variant="outline"
+        disabled={page === 1}
+        onClick={() => setPage((p) => p - 1)}
+      >
+        Previous
+      </Btn>
+
+      <span className="font-medium">Page {page}</span>
+
+      <Btn
+        disabled={!hasMore}
+        onClick={() => setPage((p) => p + 1)}
+      >
+        Next
+      </Btn>
+    </div>
+  </>
       )}
     </div>
+    
   );
 }
