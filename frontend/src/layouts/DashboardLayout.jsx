@@ -101,7 +101,7 @@ const adminNav = [
     icon: ClipboardList,
     allowedRoles: ADMIN_ONLY_ROLES,
   },
- 
+
   {
     path: '/quick-generate',
     label: 'Quick Generate',
