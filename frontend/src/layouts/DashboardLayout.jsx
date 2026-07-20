@@ -55,6 +55,7 @@ const nav = [
   { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/profile', label: 'Profile', icon: User },
   { path: '/sessions', label: 'Sessions', icon: Shield },
+  { path: '/assistant', label: 'AI Assistant', icon: Bot },
   {
     path: '/reports',
     label: 'Reports',
@@ -100,12 +101,7 @@ const adminNav = [
     icon: ClipboardList,
     allowedRoles: ADMIN_ONLY_ROLES,
   },
-  {
-    path: '/assistant',
-    label: 'AI Assistant',
-    icon: Bot,
-    allowedRoles: ADMIN_ONLY_ROLES,
-  },
+ 
   {
     path: '/quick-generate',
     label: 'Quick Generate',
