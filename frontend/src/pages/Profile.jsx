@@ -46,12 +46,12 @@ export default function Profile() {
   const user = useAuthStore((s) => s.user);
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  const [fullName, setFullName] = useState('');
+  const [full_name, setfull_name] = useState('');
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-
+  const [nameError, setNameError] = useState('');
   const {
     data: profile,
     isLoading,
@@ -64,7 +64,7 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    if (profile) setFullName(profile.full_name || '');
+    if (profile) setfull_name(profile.full_name || '');
   }, [profile]);
 
   const flash = (m) => {
@@ -72,14 +72,32 @@ export default function Profile() {
     setError('');
     setTimeout(() => setMessage(''), 2500);
   };
+  const validateProfile = () => {
+    const name = full_name.trim();
+    if (!/^[A-Za-z ]+$/.test(name)) {
+      setNameError('Name can only contain letters and spaces.');
+      return false;
+    }
+    if (name.length < 3) {
+      setNameError('Name must be at least 3 characters.');
+      return false;
+    }
 
+    if (name.length > 50) {
+      setNameError('Name must not exceed 50 characters.');
+      return false;
+    }
+
+    setNameError('');
+    return true;
+  };
   const updateProfileMut = useMutation({
     mutationFn: (data) => api.patch('/users/me', data),
     onSuccess: (_res, vars) => {
       flash('Profile updated successfully');
 
       if (vars?.full_name && user) {
-        setAuth({ user: { ...user, fullName: vars.full_name } });
+        setAuth({ user: { ...user, full_name: vars.full_name } });
       }
 
       queryClient.invalidateQueries({ queryKey: ['myProfile'] });
@@ -226,15 +244,27 @@ export default function Profile() {
                   )}
 
                   <label
-                    className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-indigo-50 dark:hover:bg-slate-700 transition-all"
-                    title="Change avatar"
+                    className={`absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center transition-all ${
+                      avatarMut.isPending
+                        ? 'opacity-60 cursor-not-allowed'
+                        : 'cursor-pointer hover:scale-105 hover:bg-indigo-50 dark:hover:bg-slate-700'
+                    }`}
+                    title={
+                      avatarMut.isPending ? 'Uploading...' : 'Change avatar'
+                    }
                   >
-                    <Camera className="w-4 h-4" />
+                    {avatarMut.isPending ? (
+                      <span className="text-[10px] font-semibold">...</span>
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
                     <input
+                      disabled={avatarMut.isPending}
                       type="file"
                       accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
                       className="hidden"
                       onChange={(e) => {
+                        if (avatarMut.isPending) return;
                         const file = e.target.files?.[0];
 
                         if (!file) return;
@@ -332,16 +362,25 @@ export default function Profile() {
               </label>
 
               <Input
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                value={full_name}
+                onChange={(e) => setfull_name(e.target.value)}
                 placeholder="Enter your full name"
               />
+              {nameError && (
+                <p className="text-sm text-red-500 mt-1">{nameError}</p>
+              )}
             </div>
 
             <Btn
-              onClick={() => updateProfileMut.mutate({ full_name: fullName })}
+              onClick={() => {
+                if (!validateProfile()) return;
+
+                updateProfileMut.mutate({
+                  full_name: full_name.trim(),
+                });
+              }}
               disabled={
-                updateProfileMut.isPending || fullName === profile?.full_name
+                updateProfileMut.isPending || full_name === profile?.full_name
               }
               className="w-full sm:w-auto px-6 bg-gradient-to-r from-indigo-600 to-blue-600 hover:shadow-indigo-200 dark:hover:shadow-none"
             >

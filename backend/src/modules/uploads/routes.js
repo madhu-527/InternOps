@@ -69,18 +69,18 @@ async function routes(fastify) {
       const data = await req.file();
       if (!data) return reply.status(400).send({ error: 'No file uploaded' });
 
-      if (data.file.truncated || data.file.bytesRead > config.maxFileSize) {
-        return reply
-          .status(400)
-          .send({ error: 'File exceeds maximum size of 5MB' });
-      }
-
       const ext = path.extname(data.filename || '').toLowerCase();
       if (!ALLOWED.includes(data.mimetype) || !ALLOWED_EXTS.includes(ext)) {
         return reply.status(400).send({ error: 'Unsupported file type' });
       }
 
       const buffer = await data.toBuffer();
+
+      if (data.file.truncated) {
+        return reply
+          .status(413)
+          .send({ error: 'File exceeds maximum size of 5MB' });
+      }
 
       // Magic-byte verification — defends against MIME spoofing
       const detectedMime = detectMimeFromBuffer(buffer);
@@ -98,8 +98,18 @@ async function routes(fastify) {
         '..',
         config.uploadDir
       );
+
+      // Calculate the absolute path of the target file
+      const targetFilePath = path.resolve(uploadPath, fileName);
+      const absoluteUploadPath = path.resolve(uploadPath);
+
+      // Security Check: Path Traversal Protection
+      if (!targetFilePath.startsWith(absoluteUploadPath)) {
+        return reply.status(400).send({ error: 'Invalid file path' });
+      }
+
       fs.mkdirSync(uploadPath, { recursive: true });
-      fs.writeFileSync(path.join(uploadPath, fileName), buffer);
+      fs.writeFileSync(targetFilePath, buffer);
 
       const url = `/uploads/${fileName}`;
       await repo.updateAvatarUrl(req.user.id, url);

@@ -4,6 +4,7 @@ const {
 const auth = require('../../middleware/auth');
 const rbac = require('../../middleware/rbac');
 const ownership = require('../../middleware/ownership');
+const requireFreshRole = require('../../middleware/requireFreshRole');
 const repo = require('./repository');
 const { createAuditLog, extractRequestInfo } = require('../../utils/audit');
 const { toSchema } = require('../../utils/schemaHelper');
@@ -78,10 +79,19 @@ async function routes(fastify) {
     '/members',
     {
       preHandler: [auth, rbac(...MANAGER_ROLES)],
-      schema: { tags: ['Team'], description: 'List team members' },
+      schema: {
+        tags: ['Team'],
+        description: 'List team members',
+        querystring: {
+          type: 'object',
+          properties: {
+            department_id: { type: 'string', format: 'uuid' },
+          },
+        },
+      },
     },
     async (req) => {
-      return repo.getTeamMembers(req.user.id);
+      return repo.getTeamMembers(req.user.id, req.query?.department_id);
     }
   );
 
@@ -295,7 +305,13 @@ async function routes(fastify) {
   fastify.patch(
     '/members/:id/role',
     {
-      preHandler: [auth, rbac(...MANAGER_ROLES), ownership('id'), sanitize],
+      preHandler: [
+        auth,
+        rbac(...MANAGER_ROLES),
+        requireFreshRole,
+        ownership('id'),
+        sanitize,
+      ],
       schema: {
         tags: ['Team'],
         description: 'Change member role',
@@ -369,7 +385,13 @@ async function routes(fastify) {
   fastify.patch(
     '/members/:id/manager',
     {
-      preHandler: [auth, rbac(...MANAGER_ROLES), ownership('id'), sanitize],
+      preHandler: [
+        auth,
+        rbac(...MANAGER_ROLES),
+        requireFreshRole,
+        ownership('id'),
+        sanitize,
+      ],
       schema: {
         tags: ['Team'],
         description: 'Change member manager',

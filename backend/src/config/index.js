@@ -1,5 +1,6 @@
 require('dotenv').config();
 const pino = require('pino');
+const { z } = require('zod');
 
 const log = pino(
   process.env.NODE_ENV === 'development'
@@ -88,8 +89,12 @@ function resolveRefreshSecret() {
     : undefined;
 }
 
+const envSchema = z.object({
+  PORT: z.coerce.number().default(5000),
+});
+const env = envSchema.parse(process.env);
 module.exports = {
-  port: parseInt(process.env.PORT, 10) || 5000,
+  port: env.PORT,
   host: process.env.HOST || '0.0.0.0',
   nodeEnv: process.env.NODE_ENV,
   databaseUrl: process.env.DATABASE_URL,
@@ -106,6 +111,8 @@ module.exports = {
   uploadDir: process.env.UPLOAD_DIR || 'uploads',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 5242880,
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  appUrl:
+    process.env.APP_URL || process.env.CORS_ORIGIN || 'http://localhost:5173',
   redis: buildRedisConfig(),
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
@@ -137,6 +144,10 @@ module.exports = {
       parseInt(process.env.RATE_LIMIT_AUTH_MAX, 10) ||
       (process.env.NODE_ENV === 'test' ? 10000 : 50),
     timeWindow: process.env.RATE_LIMIT_TIME_WINDOW || '1 minute',
+    passwordResetCooldownMs:
+      parseInt(process.env.PASSWORD_RESET_COOLDOWN_MS, 10) || 5 * 60 * 1000,
+    passwordResetHourlyMax:
+      parseInt(process.env.PASSWORD_RESET_HOURLY_MAX, 10) || 5,
   },
   email: {
     host: process.env.SMTP_HOST,
@@ -151,5 +162,10 @@ module.exports = {
     rateLimitPerRecipient: parseInt(process.env.EMAIL_RATE_LIMIT, 10) || 5,
     rateLimitWindowMs: parseInt(process.env.EMAIL_RATE_WINDOW, 10) || 60000,
     bounceCheckEnabled: process.env.EMAIL_BOUNCE_CHECK === 'true',
+  },
+  websocket: {
+    maxUnauthenticatedConnections:
+      parseInt(process.env.MAX_UNAUTHENTICATED_WEBSOCKET_CONNECTIONS, 10) || 20,
+    authTimeoutMs: parseInt(process.env.WEBSOCKET_AUTH_TIMEOUT_MS, 10) || 5000,
   },
 };
