@@ -95,6 +95,26 @@ async function loadMigrations(dir) {
 
 async function migrate(migrationsDir) {
   const dir = migrationsDir || path.resolve(__dirname, '../../migrations');
+
+  const first = path.join(dir, '001_initial.sql');
+
+  const buffer = await fsPromises.readFile(first);
+
+  console.log('Length:', buffer.length);
+  console.log('First bytes:', buffer.slice(0, 10));
+  console.log('Last bytes:', buffer.slice(buffer.length - 10));
+
+  const sql = await readFileWithRetry(first);
+
+  console.log('SQL length:', sql.length);
+
+  const normalized = sql.replace(/\r\n/g, '\n');
+
+  console.log(
+    'HASH =',
+    crypto.createHash('sha256').update(normalized, 'utf8').digest('hex')
+  );
+
   const migrations = await loadMigrations(dir);
 
   let client;
