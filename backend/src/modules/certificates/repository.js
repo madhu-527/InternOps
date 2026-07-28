@@ -1,21 +1,22 @@
 const pool = require('../../config/db');
-const logger = require('../../logger');
 
 // ============================================================
 // Templates
 // ============================================================
 
 async function createTemplate(data, userId) {
-  logger.debug({ data }, 'Repository data for createTemplate');
+  const templateData = { ...(data.template_data || {}) };
+  if (data.colorScheme) {
+    templateData.colorScheme = data.colorScheme;
+  }
   const res = await pool.query(
-    `INSERT INTO certificate_templates (name, description,color_scheme, template_data, thumbnail_url, canva_design_id, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO certificate_templates (name, description, template_data, thumbnail_url, canva_design_id, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
     [
       data.name,
       data.description || null,
-      JSON.stringify(data.colorScheme || []),
-      JSON.stringify(data.template_data || {}),
+      JSON.stringify(templateData),
       data.thumbnail_url || null,
       data.canva_design_id || null,
       userId,
@@ -88,12 +89,6 @@ async function updateTemplate(id, data) {
   if (data.canva_design_id !== undefined) {
     fields.push(`canva_design_id = $${idx}`);
     params.push(data.canva_design_id);
-    idx++;
-  }
-
-  if (data.colorScheme !== undefined) {
-    fields.push(`color_scheme = $${idx}`);
-    params.push(JSON.stringify(data.colorScheme));
     idx++;
   }
 
