@@ -196,14 +196,13 @@ async function migrate(migrationsDir) {
 
     for (const migration of migrations) {
       const { name, sql, checksum } = migration;
-      const alreadyApplied = appliedNames.has(name);
 
-      const alreadyApplied = await client.query(
+      const appliedRow = await client.query(
         'SELECT 1 FROM _migrations WHERE name = $1',
         [name]
       );
 
-      if (alreadyApplied.rowCount > 0) {
+      if (appliedRow.rowCount > 0) {
         const stored = await client.query(
           'SELECT sha256 FROM _migration_checksums WHERE name = $1',
           [name]
